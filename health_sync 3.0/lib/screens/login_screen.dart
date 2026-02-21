@@ -4,6 +4,8 @@ import '../models/models.dart';
 import 'patient/patient_dashboard.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
+import 'dart:convert'; // For turning data into JSON
+import 'package:http/http.dart' as http; // For sending the message
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -14,33 +16,61 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _emailCtl = TextEditingController();
+  final _passwordCtl = TextEditingController();
   String _msg = '';
 
-  void _login() {
+  void _login() async { // ✅ 'await' will work now!
     final email = _emailCtl.text.trim();
-    if (email.isEmpty) {
-      setState(() => _msg = 'Enter email');
-      return;
-    }
+  final password = _passwordCtl.text.trim(); // NEW: Read the password here
 
-    final user = InMemoryDB.findUserByEmail(email);
-    if (user == null) {
-      setState(() => _msg = 'User not found');
-      return;
-    }
+  if (email.isEmpty || password.isEmpty) {
+    setState(() => _msg = 'Enter email and password');
+    return;
+  }
 
-    // Navigate based on role
-    if (user.role == 'patient') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => PatientDashboard(user: user)),
-      );
-    } else if (user.role == 'staff' || user.role == 'doctor') {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
-      );
+   // 1. Where is Strapi? 
+  // If using Android Emulator, use 10.0.2.2. If on Web, use localhost.
+  const String url = "http://localhost:1337/api/auth/local";
+
+  try {
+    // 2. Send the "Login Request"
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "identifier": email, // Strapi calls the email "identifier"
+        "password": password,
+      }),
+    );
+
+    // 3. What did Strapi say back?
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      
+      // Strapi sends back a 'jwt' (The Key) and 'user' (The Info)
+      final userFromStrapi = data['user']; 
+
+      // 4. Navigate based on role (Make sure your Strapi user has a 'role' field!)
+      // For now, let's keep your navigation logic
+      if (userFromStrapi['email'].contains('patient')) {
+         Navigator.pushReplacement(
+           context,
+           MaterialPageRoute(builder: (context) => PatientDashboard(user: userFromStrapi)),
+         );
+      } else {
+         Navigator.pushReplacement(
+           context,
+           MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+         );
+      }
+    } else {
+      // If Strapi says "No" (400 error)
+      setState(() => _msg = 'Invalid email or password');
     }
+  } catch (e) {
+    // If the server is off or the IP is wrong
+    setState(() => _msg = 'Cannot connect to server');
+  }
   }
 
   @override
@@ -61,6 +91,15 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: _emailCtl,
               decoration: const InputDecoration(
                 labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _passwordCtl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Password',
                 border: OutlineInputBorder(),
               ),
             ),
