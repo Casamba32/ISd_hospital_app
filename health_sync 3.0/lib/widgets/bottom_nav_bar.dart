@@ -13,7 +13,7 @@ class MyBottomNavBar extends StatelessWidget {
         String route;
         switch (index) {
           case 0:
-            route = '/';
+            route = '/admin-dashboard';
             break;
           case 1:
             route = '/records';

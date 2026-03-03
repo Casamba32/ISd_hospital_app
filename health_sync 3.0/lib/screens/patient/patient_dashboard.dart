@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import 'book_appointment.dart';
 import 'medical_records.dart';
+import '../profile_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
+import 'package:supabase_flutter/supabase_flutter.dart' hide User; // Add this to resolve the User type conflict  
+
 
 class PatientDashboard extends StatefulWidget {
   final User user;
@@ -21,6 +25,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
     _tabs = [
       BookAppointmentPage(patient: widget.user),
       MedicalRecordsPage(patient: widget.user),
+      ProfileScreen(user: widget.user),
     ];
   }
 
@@ -40,6 +45,10 @@ class _PatientDashboardState extends State<PatientDashboard> {
           BottomNavigationBarItem(
             icon: Icon(Icons.folder),
             label: 'Medical Records',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),

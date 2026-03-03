@@ -1,11 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:hospital_app/models/models.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide  User; // Add this
 import '../widgets/bottom_nav_bar.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  
+  const ProfileScreen({Key? key, required User user}) : super(key: key);
+  
 
   @override
   Widget build(BuildContext context) {
+    // 1. Get the current user from Supabase
+    final user = Supabase.instance.client.auth.currentUser;
+
+    // 2. Extract the Name and Email
+    // If name isn't found in metadata, we show 'Guest' as a fallback
+    final String name = user?.userMetadata?['name'] ?? 'Guest';
+    final String email = user?.email ?? 'No email found';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -18,17 +30,17 @@ class ProfileScreen extends StatelessWidget {
             child: Icon(Icons.person, size: 50),
           ),
           const SizedBox(height: 16),
-          const Center(
+          Center(
             child: Text(
-              'John Doe',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              name, // Display the real Name from Supabase
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(height: 8),
-          const Center(
+          Center(
             child: Text(
-              'patient@test.com',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              email, // Display the real Email from Supabase
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
           ),
           const SizedBox(height: 24),
@@ -52,6 +64,20 @@ class ProfileScreen extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Help & Support coming soon')),
                 );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 3. Added a Logout Button to test the connection
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red)),
+              onTap: () async {
+                await Supabase.instance.client.auth.signOut();
+                if (context.mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
               },
             ),
           ),

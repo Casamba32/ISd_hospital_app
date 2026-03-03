@@ -9,8 +9,21 @@ import 'screens/account_settings_screen.dart';
 import 'screens/bills_screen.dart';
 import 'screens/records_screen.dart';
 import 'screens/profile_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+// 1. Changed main to be async
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://iphvfncwiltvrqepinle.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwaHZmbmN3aWx0dnJxZXBpbmxlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzMzU3NjcsImV4cCI6MjA4NzkxMTc2N30.hPDlUPcfFpKMRiarJtb543GSmamM175EOrn0LVUJNvc',
+  );
+
+  // Use 'Supabase.instance.client' instead of just 'supabase'
+  // This checks the internal Supabase configuration
+ print("Supabase Connected: ${Supabase.instance.client.rest.url}");
+  
   runApp(const HospitalApp());
 }
 
@@ -22,7 +35,8 @@ class HospitalApp extends StatelessWidget {
     return MaterialApp(
       title: 'Hospital Management System',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: Colors.blue, // Corrected from primarySwatch for Material 3 compatibility
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
       initialRoute: '/',
@@ -35,7 +49,8 @@ class HospitalApp extends StatelessWidget {
         '/account-settings': (context) => const AccountSettingsScreen(),
         '/bills': (context) => const BillsScreen(),
         '/records': (context) => const RecordsScreen(),
-        '/profile': (context) => const ProfileScreen(),
+        // '/profile': (context) => const ProfileScreen(),
+        '/admin-dashboard': (context) => const AdminDashboardScreen(),
       },
     );
   }
