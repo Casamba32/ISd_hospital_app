@@ -13,7 +13,10 @@ dependencies:
     sdk: flutter
   http: ^1.6.0  
   cupertino_icons: ^1.0.2
+  shared_preferences: ^2.2.2
+  carousel_slider: ^5.0.0
   supabase_flutter: ^2.0.0  # Add this line here
+  # google_generative_ai: ^0.4.5
 
 dev_dependencies:
   flutter_test:
@@ -21,4 +24,11 @@ dev_dependencies:
   flutter_lints: ^2.0.0
 
 flutter:
-  uses-material-design: true
+  assets:
+    - assets/images/isd1.webp
+    - assets/images/isd2.webp
+    - assets/images/isd3.webp
+      
+  uses-material-design: true  
+
+

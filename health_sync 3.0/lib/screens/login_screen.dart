@@ -4,6 +4,7 @@ import '../models/models.dart';
 import 'patient/patient_dashboard.dart';
 import 'admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
+import 'package:hospital_app/screens/patient/patient_dashboard.dart';
 import 'doctor/doctor_dashboard_screen.dart'; // Ensure this path is correct
 
 class LoginScreen extends StatefulWidget {

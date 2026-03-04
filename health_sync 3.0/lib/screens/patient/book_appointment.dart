@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User; // Hide conflicting User type
+import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../models/models.dart';
 
 class BookAppointmentPage extends StatefulWidget {
@@ -12,14 +12,10 @@ class BookAppointmentPage extends StatefulWidget {
 
 class _BookAppointmentPageState extends State<BookAppointmentPage> {
   final _reasonCtl = TextEditingController();
-  
-  // Doctor fetching variables
   List<Map<String, dynamic>> _doctors = [];
   String? _selectedDoctorName;
+  String? _selectedDoctorId;
   bool _isLoadingDoctors = true;
-
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _selectedTime = TimeOfDay.now();
 
   @override
   void initState() {
@@ -27,14 +23,12 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     _fetchDoctors();
   }
 
-  // Fetch doctors from Supabase
   Future<void> _fetchDoctors() async {
     try {
       final data = await Supabase.instance.client
           .from('doctors')
           .select('id, name')
           .order('name');
-      
       setState(() {
         _doctors = List<Map<String, dynamic>>.from(data);
         _isLoadingDoctors = false;
@@ -45,179 +39,120 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
     }
   }
 
-  // Logic to save appointment to Supabase
   Future<void> _bookAppointment() async {
-    if (_selectedDoctorName == null || _reasonCtl.text.isEmpty) {
+    if (_selectedDoctorId == null || _reasonCtl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a doctor and provide a reason')),
+        const SnackBar(content: Text('Please select a doctor and enter a reason')),
       );
       return;
     }
 
-    // Find the selected doctor's ID from our list
-    final selectedDoc = _doctors.firstWhere((doc) => doc['name'] == _selectedDoctorName);
-    final String doctorId = selectedDoc['id'];
-
-    final dateTime = DateTime(
-      _selectedDate.year,
-      _selectedDate.month,
-      _selectedDate.day,
-      _selectedTime.hour,
-      _selectedTime.minute,
-    );
-
     try {
+      // This insert sends the data to the 'appointments' table
+      // It includes doctor_id so the Doctor's Dashboard can filter for it.
       await Supabase.instance.client.from('appointments').insert({
         'patient_id': widget.patient.id,
         'patient_name': widget.patient.name,
-        'doctor_id': doctorId,
+        'doctor_id': _selectedDoctorId,
         'doctor_name': _selectedDoctorName,
-        'appointment_date': dateTime.toIso8601String(),
-        'reason': _reasonCtl.text,
+        'reason': _reasonCtl.text.trim(),
+        'appointment_date': DateTime.now().toIso8601String(),
         'status': 'pending',
       });
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment booked successfully!')),
-      );
-
+      
       _reasonCtl.clear();
       setState(() {
         _selectedDoctorName = null;
+        _selectedDoctorId = null;
       });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Appointment Booked! check your Records.')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error booking appointment: $e')),
+        SnackBar(content: Text('Booking failed: $e')),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return ListView(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              children: [
-                const Text(
-                  'Book New Appointment',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      children: [
+        const Text(
+          'Book New Appointment',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+        ),
+        const SizedBox(height: 24),
+        
+        // Doctor Selection
+        const Text("Choose a Specialist", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        _isLoadingDoctors
+            ? const LinearProgressIndicator()
+            : DropdownButtonFormField<String>(
+                value: _selectedDoctorId,
+                isExpanded: true,
+                dropdownColor: Colors.white,
+                style: const TextStyle(color: Colors.black),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
                 ),
-                const SizedBox(height: 16),
-
-                const Text("Select Doctor:", style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 8),
-                _isLoadingDoctors
-                    ? const Center(child: CircularProgressIndicator())
-                    : Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: _selectedDoctorName,
-                            isExpanded: true,
-                            hint: const Text("Choose an available doctor"),
-                            items: _doctors.map((doc) {
-                              return DropdownMenuItem<String>(
-                                value: doc['name'].toString(),
-                                child: Text("Dr. ${doc['name']}"),
-                              );
-                            }).toList(),
-                            onChanged: (val) => setState(() => _selectedDoctorName = val),
-                          ),
-                        ),
-                      ),
-                
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _reasonCtl,
-                  decoration: const InputDecoration(
-                    labelText: 'Reason for Visit',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                ListTile(
-                  title: Text('Date: ${_selectedDate.toLocal()}'.split(' ')[0]),
-                  trailing: const Icon(Icons.calendar_today),
-                  onTap: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _selectedDate,
-                      firstDate: DateTime.now(),
-                      lastDate: DateTime.now().add(const Duration(days: 365)),
-                    );
-                    if (date != null) setState(() => _selectedDate = date);
-                  },
-                ),
-                ListTile(
-                  title: Text('Time: ${_selectedTime.format(context)}'),
-                  trailing: const Icon(Icons.access_time),
-                  onTap: () async {
-                    final time = await showTimePicker(
-                      context: context,
-                      initialTime: _selectedTime,
-                    );
-                    if (time != null) setState(() => _selectedTime = time);
-                  },
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _bookAppointment,
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                  child: const Text('Book Appointment'),
-                ),
-                const Divider(height: 40),
-                const Text(
-                  'Your Appointment History',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 12),
-                
-                // --- REAL-TIME APPOINTMENT LIST ---
-                StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: Supabase.instance.client
-                      .from('appointments')
-                      .stream(primaryKey: ['id'])
-                      .eq('patient_id', widget.patient.id),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                      return const Text('No appointments scheduled.');
-                    }
-                    final appointments = snapshot.data!;
-                    return Column(
-                      children: appointments.map((apt) => Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: ListTile(
-                          leading: const Icon(Icons.event_note, color: Colors.blue),
-                          title: Text('Dr. ${apt['doctor_name']}'),
-                          subtitle: Text(
-                            'Date: ${DateTime.parse(apt['appointment_date']).toLocal().toString().substring(0, 16)}\nReason: ${apt['reason']}'
-                          ),
-                          trailing: Chip(
-                            label: Text(apt['status'].toString().toUpperCase()),
-                            backgroundColor: apt['status'] == 'pending' ? Colors.orange.shade100 : Colors.green.shade100,
-                          ),
-                        ),
-                      )).toList(),
-                    );
-                  },
-                ),
-              ],
-            ),
+                items: _doctors.map((doc) {
+                  return DropdownMenuItem<String>(
+                    value: doc['id'].toString(),
+                    child: Text("Dr. ${doc['name']}", style: const TextStyle(color: Colors.black)),
+                  );
+                }).toList(),
+                onChanged: (val) {
+                  final doc = _doctors.firstWhere((d) => d['id'] == val);
+                  setState(() {
+                    _selectedDoctorId = val;
+                    _selectedDoctorName = doc['name'];
+                  });
+                },
+              ),
+        
+        const SizedBox(height: 20),
+        
+        // Reason Field
+        const Text("Reason for Visit", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _reasonCtl,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.black),
+          decoration: const InputDecoration(
+            hintText: 'Describe your symptoms...',
+            border: OutlineInputBorder(),
           ),
-        ],
-      ),
+        ),
+        
+        const SizedBox(height: 24),
+        
+        // Action Button
+        ElevatedButton(
+          onPressed: _bookAppointment,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade700,
+            foregroundColor: Colors.white,
+            minimumSize: const Size(double.infinity, 55),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+          child: const Text('Confirm Appointment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        ),
+
+        const SizedBox(height: 30),
+        const Divider(),
+        const SizedBox(height: 10),
+        const Text("Note: Your request will be sent directly to the doctor for approval.", 
+          style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+      ],
     );
   }
 }
