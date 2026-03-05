@@ -106,7 +106,7 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
-          'Authorization': 'Bearer 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',
+          'Authorization': 'Bearer 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',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({

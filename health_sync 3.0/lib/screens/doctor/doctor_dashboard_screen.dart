@@ -21,6 +21,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   bool _isSorting = false;
 
   // --- AI TRIAGE LOGIC (LOCKED - AS REQUESTED) ---
+  // --- FIXED AI TRIAGE LOGIC ---
   Future<void> _sortByAI(List<Map<String, dynamic>> appointments) async {
     if (appointments.isEmpty) return;
     setState(() => _isSorting = true);
@@ -32,32 +33,41 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
-          'Authorization': 'Bearer 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',
+          // 1. USE YOUR NEW KEY HERE
+          'Authorization': 'Bearer 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', 
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          "model": "google/gemini-2.0-flash-lite-001",
+          "model": "openrouter/free",
           "messages": [
-            {"role": "system", "content": "Return ONLY a simple JSON object where keys are IDs and values are integer scores 1-10."},
-            {"role": "user", "content": dataForAI}
+            {"role": "system", "content": "Return ONLY a simple JSON object where keys are IDs and values are integer scores 1-10. No markdown, no explanation."},
+            {"role": "user", "content": "Rate urgency for these cases:\n$dataForAI"}
           ],
-          "response_format": { "type": "json_object" }
         }),
       );
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = jsonDecode(response.body);
         String content = responseData['choices'][0]['message']['content'];
+        
+        // 2. BETTER CLEANING (In case AI adds extra text)
         content = content.replaceAll('```json', '').replaceAll('```', '').trim();
-        final decodedContent = jsonDecode(content);
+        
+        final Map<String, dynamic> decodedContent = jsonDecode(content);
+        
         setState(() {
-          if (decodedContent is Map) {
-            _priorityScores = decodedContent.map((k, v) => MapEntry(k.toString(), int.tryParse(v.toString()) ?? 0));
-          }
+          // 3. SAFE MAPPING
+          _priorityScores = decodedContent.map((k, v) {
+            return MapEntry(k.toString(), int.tryParse(v.toString()) ?? 0);
+          });
           _isSorting = false;
         });
+      } else {
+        debugPrint("AI Error: ${response.body}"); // Helps you see 401 errors in console
+        setState(() => _isSorting = false);
       }
     } catch (e) {
+      debugPrint("Sorting catch error: $e");
       setState(() => _isSorting = false);
     }
   }
