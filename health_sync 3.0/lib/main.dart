@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hospital_app/chatbot/chatbot.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Add this to pubspec.yaml
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
@@ -55,6 +56,7 @@ class HospitalApp extends StatelessWidget {
       valueListenable: ThemeManager.themeModeNotifier,
       builder: (context, currentMode, _) {
         return MaterialApp(
+          debugShowCheckedModeBanner: false,
           title: 'Hospital Management System',
           // Theme Configuration
           themeMode: currentMode, 
@@ -78,6 +80,7 @@ class HospitalApp extends StatelessWidget {
             '/bills': (context) => const BillsScreen(),
             '/records': (context) => const RecordsScreen(),
             '/admin-dashboard': (context) => const AdminDashboardScreen(),
+            '/chatbot': (context) => const AIChatbotPage(),
             
           },
         );

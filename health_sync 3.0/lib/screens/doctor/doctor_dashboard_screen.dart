@@ -34,8 +34,9 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
           // 1. USE YOUR NEW KEY HERE
-          'Authorization': 'Bearer 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', 
+          'Authorization': 'Bearer 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', 
           'Content-Type': 'application/json',
+          // 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
         },
         body: jsonEncode({
           "model": "openrouter/free",

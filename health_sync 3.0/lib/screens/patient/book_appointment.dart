@@ -15,7 +15,14 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   List<Map<String, dynamic>> _doctors = [];
   String? _selectedDoctorName;
   String? _selectedDoctorId;
+  String? _selectedTime; 
   bool _isLoadingDoctors = true;
+
+  // Modern Time Slots
+  final List<String> _timeSlots = [
+    "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", 
+    "02:00 PM", "03:00 PM", "04:00 PM", "05:00 PM"
+  ];
 
   @override
   void initState() {
@@ -40,16 +47,19 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
   }
 
   Future<void> _bookAppointment() async {
-    if (_selectedDoctorId == null || _reasonCtl.text.trim().isEmpty) {
+    // Validation check
+    if (_selectedDoctorId == null || _selectedTime == null || _reasonCtl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a doctor and enter a reason')),
+        const SnackBar(
+          content: Text('Please select a doctor, time slot, and enter a reason'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
     try {
-      // This insert sends the data to the 'appointments' table
-      // It includes doctor_id so the Doctor's Dashboard can filter for it.
+      // Insert into Supabase
       await Supabase.instance.client.from('appointments').insert({
         'patient_id': widget.patient.id,
         'patient_name': widget.patient.name,
@@ -57,23 +67,45 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
         'doctor_name': _selectedDoctorName,
         'reason': _reasonCtl.text.trim(),
         'appointment_date': DateTime.now().toIso8601String(),
+        'appointment_time': _selectedTime, // New time field
         'status': 'pending',
       });
 
       if (!mounted) return;
       
+      // Clear local state
       _reasonCtl.clear();
       setState(() {
         _selectedDoctorName = null;
         _selectedDoctorId = null;
+        _selectedTime = null;
       });
 
+      // --- GREEN SUCCESS MESSAGE ---
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment Booked! check your Records.')),
+        SnackBar(
+          backgroundColor: Colors.green.shade600,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Row(
+            children: const [
+              Icon(Icons.check_circle, color: Colors.white),
+              SizedBox(width: 12),
+              Text(
+                'Appointment successfully booked!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          duration: const Duration(seconds: 3),
+        ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Booking failed: $e')),
+        SnackBar(
+          content: Text('Booking failed: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -100,6 +132,7 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                 dropdownColor: Colors.white,
                 style: const TextStyle(color: Colors.black),
                 decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.medical_services_outlined, color: Colors.blue),
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12),
                 ),
@@ -118,22 +151,58 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
                 },
               ),
         
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
+
+        // Time Slot Selection (Innovative UI)
+        const Text("Select Preferred Time", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: _timeSlots.map((time) {
+            bool isSelected = _selectedTime == time;
+            return InkWell(
+              onTap: () => setState(() => _selectedTime = time),
+              borderRadius: BorderRadius.circular(10),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.blue.shade700 : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isSelected ? Colors.blue.shade800 : Colors.blue.shade100,
+                    width: 1.5,
+                  ),
+                ),
+                child: Text(
+                  time,
+                  style: TextStyle(
+                    color: isSelected ? Colors.white : Colors.blue.shade800,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+
+        const SizedBox(height: 24),
         
         // Reason Field
         const Text("Reason for Visit", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         TextField(
           controller: _reasonCtl,
-          maxLines: 3,
+          maxLines: 2,
           style: const TextStyle(color: Colors.black),
           decoration: const InputDecoration(
-            hintText: 'Describe your symptoms...',
+            hintText: 'Tell us your symptoms...',
             border: OutlineInputBorder(),
           ),
         ),
         
-        const SizedBox(height: 24),
+        const SizedBox(height: 32),
         
         // Action Button
         ElevatedButton(
@@ -141,17 +210,19 @@ class _BookAppointmentPageState extends State<BookAppointmentPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.blue.shade700,
             foregroundColor: Colors.white,
+            elevation: 3,
             minimumSize: const Size(double.infinity, 55),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Confirm Appointment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          child: const Text('Confirm Booking', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         ),
 
-        const SizedBox(height: 30),
-        const Divider(),
-        const SizedBox(height: 10),
-        const Text("Note: Your request will be sent directly to the doctor for approval.", 
-          style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+        const SizedBox(height: 20),
+        const Text(
+          "Your request is sent to the doctor for review. Check 'Records' for status updates.", 
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)
+        ),
       ],
     );
   }

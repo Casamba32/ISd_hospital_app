@@ -19,7 +19,6 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Map<String, dynamic>>>(
-      // LISTEN TO REAL-TIME UPDATES
       stream: Supabase.instance.client
           .from('appointments')
           .stream(primaryKey: ['id'])
@@ -46,15 +45,21 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
                 margin: const EdgeInsets.only(bottom: 15),
                 decoration: BoxDecoration(
                   color: Colors.amber.shade50, 
-                  borderRadius: BorderRadius.circular(8), 
+                  borderRadius: BorderRadius.circular(12), 
                   border: Border.all(color: Colors.amber.shade200)
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("AI Insight", style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 5),
-                    Text(_aiSummary!, style: const TextStyle(color: Colors.black87)),
+                    const Row(
+                      children: [
+                        Icon(Icons.auto_awesome, size: 18, color: Colors.amber),
+                        SizedBox(width: 8),
+                        Text("AI Insight", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(_aiSummary!, style: const TextStyle(color: Colors.black87, height: 1.4)),
                   ],
                 ),
               )
@@ -63,29 +68,75 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
                 onPressed: _isSummarizing ? null : () => _generateAISummary(records),
                 icon: const Icon(Icons.auto_awesome),
                 label: Text(_isSummarizing ? "Analyzing History..." : "Summarize with AI"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade700, 
+                  foregroundColor: Colors.white,        
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
               ),
 
-            const SizedBox(height: 20),
-            const Text("Recent Visits", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            const Divider(),
+            const SizedBox(height: 24),
+            const Text("Recent Visits", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
 
             if (records.isEmpty)
               const Center(child: Padding(
-                padding: EdgeInsets.all(20.0),
-                child: Text("No records found.", style: TextStyle(color: Colors.black)),
+                padding: EdgeInsets.all(40.0),
+                child: Text("No records found.", style: TextStyle(color: Colors.grey)),
               )),
 
-            // DISPLAY LIST
+            // DISPLAY WHITE APPOINTMENT CARDS
             ...records.map((rec) => Card(
-              color: Colors.white,
-              elevation: 2,
-              margin: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                title: Text("Dr. ${rec['doctor_name']}", 
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                subtitle: Text("Reason: ${rec['reason']}\nStatus: ${rec['status']}", 
-                  style: const TextStyle(color: Colors.black87)),
-                isThreeLine: true,
+              color: Colors.white, // FORCED WHITE
+              surfaceTintColor: Colors.white, // PREVENTS TINTING IN MATERIAL 3
+              elevation: 3, // ADDS SUBTLE SHADOW
+              margin: const EdgeInsets.only(bottom: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Colors.blue.shade50,
+                    child: const Icon(Icons.calendar_today, color: Colors.blue, size: 20),
+                  ),
+                  title: Text("Dr. ${rec['doctor_name']}", 
+                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Reason: ${rec['reason']}", style: const TextStyle(color: Colors.black87)),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time, size: 14, color: Colors.blue),
+                            const SizedBox(width: 4),
+                            Text("${rec['appointment_time'] ?? 'Not set'}", 
+                              style: const TextStyle(color: Colors.blue, fontWeight: FontWeight.w600)),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getStatusColor(rec['status']).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                rec['status'].toString().toUpperCase(),
+                                style: TextStyle(
+                                  color: _getStatusColor(rec['status']),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             )).toList(),
           ],
@@ -94,7 +145,16 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
     );
   }
 
-  // --- AI LOGIC RESTORED ---
+  // Helper for Status Colors
+  Color _getStatusColor(dynamic status) {
+    switch (status.toString().toLowerCase()) {
+      case 'pending': return Colors.orange.shade700;
+      case 'approved': return Colors.green.shade700;
+      case 'cancelled': return Colors.red.shade700;
+      default: return Colors.grey;
+    }
+  }
+
   Future<void> _generateAISummary(List<Map<String, dynamic>> appointments) async {
     if (appointments.isEmpty) return;
     setState(() { _isSummarizing = true; });
@@ -106,12 +166,12 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
-          'Authorization': 'Bearer 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',
+          'Authorization': 'Bearer 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',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
           "model": "google/gemini-2.0-flash-lite-001", 
-          "messages": [{"role": "user", "content": "Summarize this medical history in 3 bullet points:\n\n$history"}]
+          "messages": [{"role": "user", "content": "Summarize this medical history in 3 short bullet points:\n\n$history"}]
         }),
       );
 
