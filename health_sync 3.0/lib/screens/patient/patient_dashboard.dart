@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:hospital_app/chatbot/chatbot.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../models/models.dart';
 import 'book_appointment.dart';
 import 'medical_records.dart';
@@ -34,7 +33,7 @@ class _PatientDashboardState extends State<PatientDashboard> {
       BookAppointmentPage(patient: widget.user),
       MedicalRecordsPage(patient: widget.user),
       const AIChatbotPage(), 
-      ProfileScreen(user: widget.user),
+      const ProfileScreen(),
     ];
 
     // Format Name for Greeting

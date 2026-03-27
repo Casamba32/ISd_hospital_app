@@ -1,11 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart' hide User;
 import '../../models/models.dart'; 
 import '../profile_screen.dart'; 
-import '../patient/medical_records.dart';
-import '../../main.dart'; 
+import '../patient/medical_records.dart'; 
 
 class DoctorDashboardScreen extends StatefulWidget {
   final User user;
@@ -17,61 +14,6 @@ class DoctorDashboardScreen extends StatefulWidget {
 
 class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
   int _index = 0;
-  Map<String, int> _priorityScores = {}; 
-  bool _isSorting = false;
-
-  // --- AI TRIAGE LOGIC (LOCKED - AS REQUESTED) ---
-  // --- FIXED AI TRIAGE LOGIC ---
-  Future<void> _sortByAI(List<Map<String, dynamic>> appointments) async {
-    if (appointments.isEmpty) return;
-    setState(() => _isSorting = true);
-    try {
-      final dataForAI = appointments.map((a) => 
-        "ID: ${a['id']}, Reason: ${a['reason'] ?? 'Routine'}"
-      ).join("\n");
-
-      final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          // 1. USE YOUR NEW KEY HERE
-          'Authorization': 'Bearer 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', 
-          'Content-Type': 'application/json',
-          // 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
-        },
-        body: jsonEncode({
-          "model": "openrouter/free",
-          "messages": [
-            {"role": "system", "content": "Return ONLY a simple JSON object where keys are IDs and values are integer scores 1-10. No markdown, no explanation."},
-            {"role": "user", "content": "Rate urgency for these cases:\n$dataForAI"}
-          ],
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> responseData = jsonDecode(response.body);
-        String content = responseData['choices'][0]['message']['content'];
-        
-        // 2. BETTER CLEANING (In case AI adds extra text)
-        content = content.replaceAll('```json', '').replaceAll('```', '').trim();
-        
-        final Map<String, dynamic> decodedContent = jsonDecode(content);
-        
-        setState(() {
-          // 3. SAFE MAPPING
-          _priorityScores = decodedContent.map((k, v) {
-            return MapEntry(k.toString(), int.tryParse(v.toString()) ?? 0);
-          });
-          _isSorting = false;
-        });
-      } else {
-        debugPrint("AI Error: ${response.body}"); // Helps you see 401 errors in console
-        setState(() => _isSorting = false);
-      }
-    } catch (e) {
-      debugPrint("Sorting catch error: $e");
-      setState(() => _isSorting = false);
-    }
-  }
 
   // --- DATABASE ACTIONS ---
   Future<void> _markAsDone(String id) async {
@@ -105,7 +47,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
     // Determine the title based on the active tab
     String title;
     switch (_index) {
-      case 0: title = 'Urgency Triage'; break;
+      case 0: title = 'Pending Appointments'; break;
       case 1: title = 'History'; break;
       case 2: title = 'Doctor Profile'; break;
       default: title = 'Dashboard';
@@ -119,7 +61,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
       ),
       // IMPORTANT: ProfileScreen is loaded as the body here, not pushed as a new page.
       body: _index == 2 
-          ? ProfileScreen(user: widget.user) 
+          ? const ProfileScreen() 
           : _buildAppointmentList(isRecords: _index == 1),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
@@ -151,26 +93,8 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
           return isDoctor && status == (isRecords ? 'done' : 'pending');
         }).toList();
 
-        if (!isRecords && _priorityScores.isNotEmpty) {
-          appointments.sort((a, b) {
-            int sA = _priorityScores[a['id'].toString()] ?? 0;
-            int sB = _priorityScores[b['id'].toString()] ?? 0;
-            return sB.compareTo(sA);
-          });
-        }
-
         return Column(
           children: [
-            if (!isRecords && appointments.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: ElevatedButton.icon(
-                  onPressed: _isSorting ? null : () => _sortByAI(appointments),
-                  icon: _isSorting ? const SizedBox(width: 15, height: 15, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.bolt),
-                  label: Text(_isSorting ? "AI Analyzing..." : "AI Sort by Urgency"),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade50, foregroundColor: Colors.orange.shade900),
-                ),
-              ),
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
@@ -178,7 +102,6 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                 itemBuilder: (context, index) {
                   final apt = appointments[index];
                   final aptId = apt['id'].toString();
-                  final score = _priorityScores[aptId];
 
                   return Card(
                     elevation: 3,
@@ -187,12 +110,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                       children: [
                         ListTile(
                           onTap: () => _deleteAppointment(aptId),
-                          leading: score != null 
-                            ? CircleAvatar(
-                                backgroundColor: score >= 7 ? Colors.red : Colors.orange,
-                                child: Text("$score", style: const TextStyle(color: Colors.white, fontSize: 12)),
-                              )
-                            : const Icon(Icons.person_outline),
+                          leading: const Icon(Icons.person_outline),
                           title: Text(apt['patient_name'] ?? 'Patient', style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text("Reason: ${apt['reason'] ?? 'Not specified'}"),
                           trailing: !isRecords ? Row(

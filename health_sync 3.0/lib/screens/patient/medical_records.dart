@@ -166,8 +166,9 @@ class _MedicalRecordsPageState extends State<MedicalRecordsPage> {
       final response = await http.post(
         Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
         headers: {
-          'Authorization': 'Bearer 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',
+          'Authorization': 'Bearer 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',
           'Content-Type': 'application/json',
+          
         },
         body: jsonEncode({
           "model": "google/gemini-2.0-flash-lite-001", 
